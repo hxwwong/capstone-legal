@@ -9,7 +9,9 @@ import requests
 import pybase64
 from PIL import Image, ImageDraw
 from google.cloud import bigquery, storage
-
+from bs4 import BeautifulSoup
+import pandas as pd
+import requests
 
 # import en_core_web_sm
 
@@ -44,38 +46,36 @@ def upload_formatted_rss_feed(feed, feed_name):
     # upload_string_to_gcs(csv_body=csv_buffer, uploaded_filename=filename)
 
 
-@task(task_id="inquirer_feed")
-def inquirer_feed(ds=None, **kwargs):
-    upload_formatted_rss_feed("https://www.inquirer.net/fullfeed", "inquirer")
-    return True
+@task(task_id="scrape_proclamations")
+def scrape_proc(ds=None, **kwargs): 
+    def scrape_procs():
+        r = requests.get('https://www.officialgazette.gov.ph/section/proclamations/')
+        html = BeautifulSoup(r.content, 'lxml')
 
-@task(task_id="philstar_nation")
-def philstar_nation_feed(ds=None, **kwargs):
-    upload_formatted_rss_feed("https://www.philstar.com/rss/nation", "philstar")
+        proclamations = []
 
-@task(task_id="business_world")
-def business_world_feed(ds=None, **kwargs):
-    upload_formatted_rss_feed("https://www.bworldonline.com/feed/", "business_world")
+        summary_divs = html.find_all("div", {"class":"entry-summary"})
+        titles = html.find_all('h3')[1:-1] # slicing to remove the unneeded header/footer h3 elements 
 
-@task(task_id="sunstar")
-def sunstar_feed(ds=None, **kwargs):
-    upload_formatted_rss_feed("https://www.sunstar.com.ph/rssFeed/0", "sunstart")
+        for i in range(0, len(summary_divs)): 
+            summaries = summary_divs[i].p 
+            summary_content = summaries.get_text() 
 
-@task(task_id="manila_standard")
-def manila_standard_feed(ds=None, **kwargs):
-    upload_formatted_rss_feed("https://manilastandard.net/feed", "manila_standard")
+            link = titles[i].find('a')
+            url = link.get('href')
+            id = link.get_text() 
+            data = {'proc_id': id, 
+                    'title': summary_content, 
+                    'URL': url}
 
-@task(task_id="gma_national")
-def gma_national_feed(ds=None, **kwargs):
-    upload_formatted_rss_feed("https://data.gmanetwork.com/gno/rss/news/nation/feed.xml", "gma_national")
+            proclamations.append(data)
+        return proclamations
+        
+    df = pd.DataFrame(scrape_procs())
+    df.to_csv(f"{DATA_PATH}proclamations.csv", index=False)
+    
 
-@task(task_id="business_mirror")
-def business_mirror_feed(ds=None, **kwargs):
-    upload_formatted_rss_feed("https://businessmirror.com.ph/feed/", "business_mirror")
-
-@task(task_id="pna")
-def pna_feed(ds=None, **kwargs):
-    upload_formatted_rss_feed("https://www.pna.gov.ph/latest.rss", "pna")
+## the URLs lead to the the html page, where you can access a pdf copy of the full EO order
 
 # start of task 2 - transformation 
 @task(task_id="word_count")
@@ -112,48 +112,6 @@ def load_data(ds=None, **kwargs):
         csv_buffer = StringIO()
         df.to_csv(csv_buffer)
         upload_string_to_gcs(csv_body=csv_buffer, uploaded_filename=outfile)
-
-# google street view 
-@task(task_id='map_images')
-def map_images(ds=None, **kwargs): 
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/keys/bigquery.json'
-    client = bigquery.Client() 
-
-    dataset = client.get_dataset('bigquery-public-data.geo_openstreetmap')
-    tables = list(client.list_tables(dataset))
-    print([table.table_id for table in tables])
-
-    sql = """
-    SELECT nodes.*
-    FROM `bigquery-public-data.geo_openstreetmap.planet_nodes` AS nodes
-    JOIN UNNEST(all_tags) AS tags
-    WHERE tags.key = 'amenity'
-    AND tags.value IN ('hospital',
-        'clinic',
-        'doctors')
-    LIMIT 10
-    """
-
-    # Set up the query
-    query_job = client.query(sql)
-
-    # Make an API request  to run the query and return a pandas DataFrame
-    df = query_job.to_dataframe()
-
-    def google_maps_from_coords(lat, lon):
-        return "https://maps.googleapis.com/maps/api/staticmap?center="+str(lat)+",+"+str(lon)+"&zoom=17&scale=1&size=600x300&maptype=satellite&format=png&visual_refresh=true"
-
-    GOOGLE_MAPS_STATIC_API_KEY="AIzaSyD4Hwvz-wcXXa44NOZz-RAK3GBr6Zl-gBA"
-
-    if not os.path.exists('/opt/airflow/data/images'):
-        os.mkdir('/opt/airflow/data/images') 
-
-    for _, row in df.iterrows():
-        url = google_maps_from_coords(row['latitude'], row['longitude']) + "&key=" + GOOGLE_MAPS_STATIC_API_KEY
-        req = requests.get(url, stream=True) 
-        img = Image.open(req.raw)
-        img_path = '/opt/airflow/data/images/'
-        img.save(f"{img_path}{row['latitude']}_{row['longitude']}.png")
 
 @task(task_id='upload_imgs')
 def upload_imgs(ds=None, **kwargs): 
@@ -250,57 +208,8 @@ with DAG(
     tags=['scrapers'],
 ) as dag:
 
-    t1 = BashOperator(
-        task_id="t1_start_msg",
-        bash_command="curl -X POST -H 'Content-type: application/json' --data '{\"text\" : \"starting task 1: scraping\"}' \"https://discord.com/api/webhooks/986224448984195082/pQp4GNcVWh-J2XtmIycVnjxYuGRGVIYFeveDRS5EwvgmGozthyd_alj8wbeKhfVn9SSk/slack\"",
-        dag=dag
-    )
-    # t1 = EmptyOperator(task_id="start_message")
-
-    t1_end = BashOperator(
-        task_id="t1_end_msg",
-        bash_command="curl -X POST -H 'Content-type: application/json' --data '{\"text\" : \"ending task 1: scraping\"}' \"https://discord.com/api/webhooks/986224448984195082/pQp4GNcVWh-J2XtmIycVnjxYuGRGVIYFeveDRS5EwvgmGozthyd_alj8wbeKhfVn9SSk/slack\"",
-        dag=dag
-    )
-
-    t2 = BashOperator( 
-        task_id="t2_start_msg",
-        bash_command="curl -X POST -H 'Content-type: application/json' --data '{\"text\" : \"starting task 2: transformation - counting words \"}' \"https://discord.com/api/webhooks/986224448984195082/pQp4GNcVWh-J2XtmIycVnjxYuGRGVIYFeveDRS5EwvgmGozthyd_alj8wbeKhfVn9SSk/slack\"",
-        dag=dag
-    )
-
-    t2_end = BashOperator( 
-        task_id="t2_end_msg",
-        bash_command="curl -X POST -H 'Content-type: application/json' --data '{\"text\" : \"ending task 2: transformation - counting words \"}' \"https://discord.com/api/webhooks/986224448984195082/pQp4GNcVWh-J2XtmIycVnjxYuGRGVIYFeveDRS5EwvgmGozthyd_alj8wbeKhfVn9SSk/slack\"",
-        dag=dag
-    )
-
-    t3 = BashOperator( 
-        task_id="t3_start_msg",
-        bash_command="curl -X POST -H 'Content-type: application/json' --data '{\"text\" : \"starting task 3: loading - counting words \"}' \"https://discord.com/api/webhooks/986224448984195082/pQp4GNcVWh-J2XtmIycVnjxYuGRGVIYFeveDRS5EwvgmGozthyd_alj8wbeKhfVn9SSk/slack\"",
-        dag=dag
-    )
-    
-    t3_end = BashOperator( 
-        task_id="t3_end_msg",
-        bash_command="curl -X POST -H 'Content-type: application/json' --data '{\"text\" : \"ending task 3: loading - counting words \"}' \"https://discord.com/api/webhooks/986224448984195082/pQp4GNcVWh-J2XtmIycVnjxYuGRGVIYFeveDRS5EwvgmGozthyd_alj8wbeKhfVn9SSk/slack\"",
-        dag=dag
-    )
-
-    t4 = BashOperator( 
-        task_id="t4_start_msg",
-        bash_command="curl -X POST -H 'Content-type: application/json' --data '{\"text\" : \"starting task 4: loading - osm street images \"}' \"https://discord.com/api/webhooks/986224448984195082/pQp4GNcVWh-J2XtmIycVnjxYuGRGVIYFeveDRS5EwvgmGozthyd_alj8wbeKhfVn9SSk/slack\"",
-        dag=dag
-    )
-
-    t4_end = BashOperator( 
-        task_id="t4_end_msg",
-        bash_command="curl -X POST -H 'Content-type: application/json' --data '{\"text\" : \"ending task 4: loading - osm street images \"}' \"https://discord.com/api/webhooks/986224448984195082/pQp4GNcVWh-J2XtmIycVnjxYuGRGVIYFeveDRS5EwvgmGozthyd_alj8wbeKhfVn9SSk/slack\"",
-        dag=dag
-    )
-
     t0 = BashOperator( 
-        task_id = 'test',
+        task_id = 'scrape_proclamations',
         bash_command= "echo hello world",
         dag=dag
     )
@@ -308,7 +217,7 @@ with DAG(
     # ETL 
     # t1 >> [philstar_nation_feed()] >> t1_end >> t2 >> [word_count()] >> t2_end >> t3 >> [load_data()] >> t3_end >> t4 >> [map_images(), upload_imgs()] >> t4_end
 
-    t0 
+    t0 >> scrape_proc()
     # # add commas to the list for extra functions 
     # add @task decorator, make the ids unique
 
