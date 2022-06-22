@@ -299,10 +299,17 @@ with DAG(
         dag=dag
     )
 
-    # ETL 
-    t1 >> [philstar_nation_feed()] >> t1_end >> t2 >> [word_count()] >> t2_end >> t3 >> [load_data()] >> t3_end >> t4 >> [map_images(), upload_imgs()] >> t4_end
+    t0 = BashOperator( 
+        task_id = 'test',
+        bash_command= "echo hello world",
+        dag=dag
+    )
 
-    # add commas to the list for extra functions 
+    # ETL 
+    # t1 >> [philstar_nation_feed()] >> t1_end >> t2 >> [word_count()] >> t2_end >> t3 >> [load_data()] >> t3_end >> t4 >> [map_images(), upload_imgs()] >> t4_end
+
+    t0 
+    # # add commas to the list for extra functions 
     # add @task decorator, make the ids unique
 
     # t1 >> [inquirer_feed(), philstar_nation_feed(), business_world_feed(), sunstar_feed(), manila_standard_feed(), gma_national_feed(), business_mirror_feed(), pna_feed()] >> t_end
