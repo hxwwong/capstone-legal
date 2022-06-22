@@ -1,4 +1,3 @@
-import random 
 from selenium import webdriver 
 from selenium.webdriver.support.ui import WebDriverWait 
 from selenium.webdriver.chrome.options import Options 
@@ -19,17 +18,20 @@ import requests
 dotenv.load_dotenv('develop.env')
 
 ## INITIALIZING SELENIUM ## 
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+
 login_page = "https://login.dlsu.idm.oclc.org/login?qurl=https://cdasiaonline.com%2fl%2fee17a146%2fsearch%3fyear_end%3d2022%26year_start%3d2022"
 
 # window setings 
-driver.get(login_page)
-driver.maximize_window() 
-options = Options() 
+
+options = webdriver.ChromeOptions() 
 options.add_argument("--headless")
 options.add_argument("--start-maximized") 
 options.add_argument("--disable-notifications")
 options.add_argument("--incognito")
+
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+driver.get(login_page)
+driver.maximize_window() 
 sleep(3) 
 
 # inputting credentials from the dotenv file 
@@ -94,4 +96,4 @@ def scrape_cases(url):
 # exporting to a dataframe & csv
 df = pd.DataFrame(data_list)
 df['body_text'] = df['url'].apply(lambda x: scrape_cases(x))
-df.to_csv('cases_data_v3.csv', index=False)
+df.to_csv('test.csv', index=False)
