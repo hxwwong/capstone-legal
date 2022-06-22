@@ -61,7 +61,7 @@ data_list = []
 
 # finding  core elements within each case entry 
 for case in cases: 
-    td = case.find_element(by=By.TAG_NAME, value='td')
+    td = case.find_elements(by=By.TAG_NAME, value='td')
     ref_num = td[0].text # reference number (eg G.R. 1234)
     case_name = td[1].text # eg (Person A v. Person B.)
     judge = td[2].text # eg (HERNANDEZ, J)
@@ -94,4 +94,4 @@ def scrape_cases(url):
 # exporting to a dataframe & csv
 df = pd.DataFrame(data_list)
 df['body_text'] = df['url'].apply(lambda x: scrape_cases(x))
-df.to_csv('cases_data.csv', index=False)
+df.to_csv('cases_data_v3.csv', index=False)
