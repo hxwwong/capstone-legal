@@ -26,6 +26,6 @@ def scrape_EOs():
     return EOs 
 
 df = pd.DataFrame(scrape_EOs())
-df.to_csv('executive_orders.csv')
+df.to_csv('executive_orders.csv', index=False)
 
 ## the URLs lead to the the html page, where you can access a pdf copy of the full EO order

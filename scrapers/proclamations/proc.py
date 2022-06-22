@@ -27,6 +27,6 @@ def scrape_procs():
     return proclamations
 
 df = pd.DataFrame(scrape_procs())
-df.to_csv('proclamations.csv')
+df.to_csv('proclamations.csv', index=False)
 
 ## the URLs lead to the the html page, where you can access a pdf copy of the full EO order

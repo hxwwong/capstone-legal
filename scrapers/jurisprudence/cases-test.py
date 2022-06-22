@@ -94,4 +94,4 @@ def scrape_cases(url):
 # exporting to a dataframe & csv
 df = pd.DataFrame(data_list)
 df['body_text'] = df['url'].apply(lambda x: scrape_cases(x))
-df.to_csv('cases_data.csv')
+df.to_csv('cases_data.csv', index=False)

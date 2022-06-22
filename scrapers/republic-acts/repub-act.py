@@ -56,4 +56,4 @@ def scrape_RAs(url):
 
 df = pd.DataFrame(scrape_page())
 df['body_text'] = df['url'].apply(lambda x: scrape_RAs(x))
-df.to_csv('ra_data.csv')
+df.to_csv('ra_data.csv', index=False)
