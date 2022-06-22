@@ -24,7 +24,6 @@ def scrape_page():
         
         # print(row.text)
         row_data = row.find_all('td')
-        
         ra_num = row_data[0].find('a').text
         ra_date = row_data[0].text.split(ra_num)[1].strip()
         ra_title = row_data[1].text.strip()
