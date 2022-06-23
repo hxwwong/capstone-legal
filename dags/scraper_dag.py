@@ -370,7 +370,7 @@ def load_data(ds=None, **kwargs):
             continue
         df = pd.read_csv(outfile)
         csv_buffer = StringIO()
-        df.to_csv(csv_buffer, sep='\t')
+        df.to_csv(csv_buffer, index=False)
         upload_string_to_gcs(csv_body=csv_buffer, uploaded_filename=file)
 
 @task(task_id='upload_imgs')
