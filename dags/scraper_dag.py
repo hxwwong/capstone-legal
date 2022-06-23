@@ -47,6 +47,12 @@ MY_FOLDER_PREFIX = "hans-capstone"
 
 DATA_PATH = '/opt/airflow/data/'
 
+
+
+#################################################################################################################
+########################################### HELPER FUNCTIONS ####################################################
+#################################################################################################################
+
 def upload_formatted_rss_feed(feed, feed_name):
     feed = feedparser.parse(feed)
     df = pd.DataFrame(feed['entries'])
@@ -59,14 +65,17 @@ def upload_formatted_rss_feed(feed, feed_name):
     # upload_string_to_gcs(csv_body=csv_buffer, uploaded_filename=filename)
 
 
+
+#################################################################################################################
+########################################### TASK 1 - EXTRACT ####################################################
+#################################################################################################################
+
 @task(task_id="scrape_proclamations")
 def scrape_proc(ds=None, **kwargs): 
     def scrape_procs():
         r = requests.get('https://www.officialgazette.gov.ph/section/proclamations/')
         html = BeautifulSoup(r.content, 'lxml')
-
         proclamations = []
-
         summary_divs = html.find_all("div", {"class":"entry-summary"})
         titles = html.find_all('h3')[1:-1] # slicing to remove the unneeded header/footer h3 elements 
 
@@ -92,12 +101,9 @@ def scrape_proc(ds=None, **kwargs):
 def scrape_eo(ds=None, **kwargs):
     r = requests.get('https://www.officialgazette.gov.ph/section/executive-orders/')
     html = BeautifulSoup(r.content, 'lxml')
-
     EOs = []
-
     summary_divs = html.find_all("div", {"class":"entry-summary"})
-    titles = html.find_all('h3')[1:-1] # slicing to remove the unneeded header/footer h3 elements 
-
+    titles = html.find_all('h3')[1:-1] # removing uneeded h3 elements 
     for i in range(0, len(summary_divs)): 
         summaries = summary_divs[i].p 
         summary_content = summaries.get_text() 
@@ -119,21 +125,17 @@ def scrape_RA(ds=None, **kwargs):
     def scrape_page():
         r = requests.get('https://lawphil.net/statutes/repacts/ra2021/ra2021.html')
         html = BeautifulSoup(r.content, 'lxml')
-
         table_RAs = html.find_all('table')[2]
         table_rows = table_RAs.find_all('tr')
-        
         RAs = [] 
         base_url = 'https://lawphil.net/statutes/repacts/ra2021/'
         
         for idx, row in enumerate(table_rows): 
             if idx == 0: 
                 continue
-            
             if idx == (len(table_rows)-2): 
                 break
-            
-            # print(row.text)
+
             row_data = row.find_all('td')
             ra_num = row_data[0].find('a').text
             ra_date = row_data[0].text.split(ra_num)[1].strip()
@@ -141,15 +143,16 @@ def scrape_RA(ds=None, **kwargs):
             url = ""
             link = row_data[0].find('a')
             
-            
             try: 
                 url = link['href']
             except: 
                 url = link['xref']
             
-            data = {'id': ra_num, 'date': ra_date, 'title': ra_title, 'url':f"{base_url}{url}"}
+            data = {'id': ra_num, 
+                    'date': ra_date,
+                    'title': ra_title,
+                    'url':f"{base_url}{url}"}
             RAs.append(data)
-
         return RAs 
 
     def scrape_RAs(url): 
@@ -157,9 +160,7 @@ def scrape_RA(ds=None, **kwargs):
         try:
             r = requests.get(url)
             html = BeautifulSoup(r.content, 'lxml')
-
             table = html.find_all('table')[0]
-            
             return table.text.strip() 
     # 36 /124 have broken links -- have been designated null -- add to documentation 
         except: 
@@ -171,87 +172,91 @@ def scrape_RA(ds=None, **kwargs):
     return "Successfully scraped Republic Acts"
 
 
-@task(task_id="scrape_jurisprudence")
-def scrape_juris(ds=None, **kwargs): 
-    login_page = "https://login.dlsu.idm.oclc.org/login?qurl=https://cdasiaonline.com%2fl%2fee17a146%2fsearch%3fyear_end%3d2022%26year_start%3d2022"
+# @task(task_id="scrape_jurisprudence")
+# def scrape_juris(ds=None, **kwargs): 
+#     login_page = "https://login.dlsu.idm.oclc.org/login?qurl=https://cdasiaonline.com%2fl%2fee17a146%2fsearch%3fyear_end%3d2022%26year_start%3d2022"
 
-    # window setings 
+#     # window setings 
 
-    options = webdriver.ChromeOptions() 
-    options.add_argument("--headless")
-    options.add_argument("--start-maximized") 
-    options.add_argument("--disable-notifications")
-    options.add_argument("--incognito")
+#     options = webdriver.ChromeOptions() 
+#     options.add_argument("--headless")
+#     options.add_argument("--start-maximized") 
+#     options.add_argument("--disable-notifications")
+#     options.add_argument("--incognito")
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    driver.get(login_page)
-    driver.maximize_window() 
-    sleep(3) 
+#     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+#     driver.get(login_page)
+#     driver.maximize_window() 
+#     sleep(3) 
 
-    # inputting credentials from the dotenv file 
+#     # inputting credentials from the dotenv file 
 
-    #  find_element(by=By.NAME, value=name)
-    username = driver.find_element(by=By.NAME, value='user') 
-    username.send_keys(Variables.get('CDA_UN'))
-    sleep(1)
+#     #  find_element(by=By.NAME, value=name)
+#     username = driver.find_element(by=By.NAME, value='user') 
+#     username.send_keys(Variables.get('CDA_UN'))
+#     sleep(1)
 
-    password = driver.find_element(by=By.NAME, value='pass') 
-    password.send_keys(Variables.get('CDA_PW'))
-    sleep(1)
+#     password = driver.find_element(by=By.NAME, value='pass') 
+#     password.send_keys(Variables.get('CDA_PW'))
+#     sleep(1)
 
-    submit_button = driver.find_element(by=By.NAME, value='login') 
-    submit_button.click()
-    sleep(3)
+#     submit_button = driver.find_element(by=By.NAME, value='login') 
+#     submit_button.click()
+#     sleep(3)
 
-    # clicking the prompt after being redirected from login_page 
-    continue_button = driver.find_element(by=By.CLASS_NAME, value='btn-card-submit')
-    continue_button.click()
+#     # clicking the prompt after being redirected from login_page 
+#     continue_button = driver.find_element(by=By.CLASS_NAME, value='btn-card-submit')
+#     continue_button.click()
 
-    #############
-    ## SCRAPER ## 
-    ############# 
+#     #############
+#     ## SCRAPER ## 
+#     ############# 
 
-    # collecting all the rows containing cases entries
-    cases = driver.find_elements(by=By.CLASS_NAME, value='i-menu-newtab')
-    data_list = [] 
+#     # collecting all the rows containing cases entries
+#     cases = driver.find_elements(by=By.CLASS_NAME, value='i-menu-newtab')
+#     data_list = [] 
 
-    # finding  core elements within each case entry 
-    for case in cases: 
-        td = case.find_elements(by=By.TAG_NAME, value='td')
-        ref_num = td[0].text # reference number (eg G.R. 1234)
-        case_name = td[1].text # eg (Person A v. Person B.)
-        judge = td[2].text # eg (HERNANDEZ, J)
-        date = td[4].text # eg 2022-03-21
-        url = case.get_attribute('data-href') # https://cdasia-online...
+#     # finding  core elements within each case entry 
+#     for case in cases: 
+#         td = case.find_elements(by=By.TAG_NAME, value='td')
+#         ref_num = td[0].text # reference number (eg G.R. 1234)
+#         case_name = td[1].text # eg (Person A v. Person B.)
+#         judge = td[2].text # eg (HERNANDEZ, J)
+#         date = td[4].text # eg 2022-03-21
+#         url = case.get_attribute('data-href') # https://cdasia-online...
 
-        # storing info as a dict for dataframe 
-        data = {'ref_num': ref_num, 
-                'case': case_name, 
-                'judge': judge, 
-                'date':date, 
-                'url':url} 
+#         # storing info as a dict for dataframe 
+#         data = {'ref_num': ref_num, 
+#                 'case': case_name, 
+#                 'judge': judge, 
+#                 'date':date, 
+#                 'url':url} 
 
-        data_list.append(data)
+#         data_list.append(data)
 
 
 
-    def scrape_cases(url): 
-        sleep(1)
-        # try:
-        driver.get(url)
-        doc = driver.find_element(by=By.CLASS_NAME, value='doc-view-container')
+    # def scrape_cases(url): 
+    #     sleep(1)
+    #     # try:
+    #     driver.get(url)
+    #     doc = driver.find_element(by=By.CLASS_NAME, value='doc-view-container')
         
-        return doc.text.strip()
+    #     return doc.text.strip()
 
 
-    # exporting to a dataframe & csv
-    df = pd.DataFrame(data_list)
-    df['body_text'] = df['url'].apply(lambda x: scrape_cases(x))
-    df.to_csv(f"{DATA_PATH}cases.csv", index=False)
-    return 'Successfully scraped cases'
+    # # exporting to a dataframe & csv
+    # df = pd.DataFrame(data_list)
+    # df['body_text'] = df['url'].apply(lambda x: scrape_cases(x))
+    # df.to_csv(f"{DATA_PATH}cases.csv", index=False)
+    # return 'Successfully scraped cases'
 
 
-# start of task 2 - transformation 
+
+#################################################################################################################
+########################################### TASK 2 - TRANSFORM ##################################################
+#################################################################################################################
+
 @task(task_id="word_count")
 def word_count(ds=None, **kwargs):
 
@@ -274,7 +279,11 @@ def word_count(ds=None, **kwargs):
         df.to_csv(outfile, index=False)
         print(df[['summary','sum_word_cnt', 'dict_word_cnt']])
 
-# task 3 - loading 
+
+#################################################################################################################
+############################################ TASK 3 - LOAD ######################################################
+#################################################################################################################
+
 @task(task_id="load_data")
 def load_data(ds=None, **kwargs): 
     files = os.listdir(DATA_PATH)
@@ -285,7 +294,7 @@ def load_data(ds=None, **kwargs):
         df = pd.read_csv(outfile)
         csv_buffer = StringIO()
         df.to_csv(csv_buffer)
-        upload_string_to_gcs(csv_body=csv_buffer, uploaded_filename=outfile)
+        upload_string_to_gcs(csv_body=csv_buffer, uploaded_filename=file)
 
 @task(task_id='upload_imgs')
 def upload_imgs(ds=None, **kwargs): 
@@ -348,8 +357,27 @@ def upload_img_to_gcs(img, uploaded_filename, service_secret=os.environ.get('SER
 #     bucket = client.get_bucket(BUCKET_NAME)
 #     object_name_in_gcs_bucket = bucket.blob(img)
 #     object_name_in_gcs_bucket.upload_from_filename(MY_FOLDER_PREFIX + "/images/" + uploaded_filename)
-  
 
+#################################################################################################################
+############################################ TASK 4 - CLEANUP ###################################################
+#################################################################################################################
+
+@task(task_id='delete_residuals')
+def delete_residuals(ds=None, **kwargs): 
+    files = os.listdir(f"{DATA_PATH}")
+    for file in files: 
+        outfile = f"{DATA_PATH}{file}"
+        print(file)
+        if os.path.isdir(outfile):
+            shutil.rmtree(outfile)
+        elif not outfile.endswith('.csv'):
+            continue 
+        else: 
+            os.remove(outfile)
+
+#################################################################################################################
+################################################# DAG ###########################################################
+#################################################################################################################
 
 with DAG(
     'capstone-legal-v1',
@@ -382,19 +410,20 @@ with DAG(
     tags=['scrapers'],
 ) as dag:
 
-    t0 = BashOperator( 
-        task_id = 'scrape_proclamations',
-        bash_command= "echo hello world",
+    t_start = BashOperator( 
+        task_id = 'start_dag',
+        bash_command= "echo start dag",
         dag=dag
     )
 
-    t1 = DockerOperator( 
-        environment={'CDA_UN': Variable.get('CDA_UN'),
-                     'CDA_PW': Variable.get('CDA_PW')}, 
-        image='hxwwong/capstone-juris-scraper', 
-        force_pull=True
+    t_end = BashOperator( 
+        task_id = 'end_dag',
+        bash_command= "echo end dag",
+        dag=dag
     )
 
+    
+    
     # t1 = DockerOperator(
     #     task_id = 'scrape_jurisprudence'
     #     xcom = True # set to True to get all output in terminal 
@@ -402,12 +431,12 @@ with DAG(
     # ETL 
     # t1 >> [philstar_nation_feed()] >> t1_end >> t2 >> [word_count()] >> t2_end >> t3 >> [load_data()] >> t3_end >> t4 >> [map_images(), upload_imgs()] >> t4_end
 
-    t0 >> scrape_eo() >> scrape_proc() >> scrape_RA() 
-    # # add commas to the list for extra functions 
-    # add @task decorator, make the ids unique
+    
+#################################################################################################################
+############################################ ETL PIPELINE #######################################################
+#################################################################################################################
 
-    # t1 >> [inquirer_feed(), philstar_nation_feed(), business_world_feed(), sunstar_feed(), manila_standard_feed(), gma_national_feed(), business_mirror_feed(), pna_feed()] >> t_end
-
+t_start >> [scrape_eo(), scrape_proc(), scrape_RA(), load_data()] >> t_end
 
 
 
