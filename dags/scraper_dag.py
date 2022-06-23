@@ -370,7 +370,7 @@ def load_data(ds=None, **kwargs):
             continue
         df = pd.read_csv(outfile)
         csv_buffer = StringIO()
-        df.to_csv(csv_buffer)
+        df.to_csv(csv_buffer, sep='\t')
         upload_string_to_gcs(csv_body=csv_buffer, uploaded_filename=file)
 
 @task(task_id='upload_imgs')
@@ -462,7 +462,7 @@ with DAG(
     # You can override them on a per-task basis during operator initialization
     default_args={
         # 'depends_on_past': False,
-        # 'email': ['caleb@eskwelabs.com'],
+        'email': ['hxwwong@gmail.com'],
         # 'email_on_failure': False,
         # 'email_on_retry': False,
         # 'retries': 1,
