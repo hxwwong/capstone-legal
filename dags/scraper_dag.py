@@ -428,9 +428,9 @@ with DAG(
         api_version='auto',
         auto_remove=True,
         command="/bin/sleep 30",
-        dag=dag
         docker_url="unix://var/run/docker.sock",
-        network_mode="bridge"
+        network_mode="bridge", 
+        dag=dag
     )
     
     
