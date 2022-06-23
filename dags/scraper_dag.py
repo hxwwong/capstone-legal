@@ -425,7 +425,7 @@ with DAG(
     t_docker = DockerOperator(
         task_id='docker_selenium',
         image='hxwwo/capstone-juris-scraper',
-        api_version='auto',
+        # api_version='auto',
         auto_remove=True,
         command="/bin/sleep 30",
         docker_url="unix://var/run/docker.sock",
