@@ -24,12 +24,14 @@ login_page = "https://login.dlsu.idm.oclc.org/login?qurl=https://cdasiaonline.co
 # window setings 
 
 options = webdriver.ChromeOptions() 
+options.binary_location= "../../model/chromedriver"
 options.add_argument("--headless")
 options.add_argument("--start-maximized") 
 options.add_argument("--disable-notifications")
 options.add_argument("--incognito")
 
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+driver = webdriver.Chrome(options=options)
+# driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 driver.get(login_page)
 driver.maximize_window() 
 sleep(3) 

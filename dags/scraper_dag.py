@@ -388,6 +388,13 @@ with DAG(
         dag=dag
     )
 
+    t1 = DockerOperator( 
+        environment={'CDA_UN': Variable.get('CDA_UN'),
+                     'CDA_PW': Variable.get('CDA_PW')}, 
+        image='hxwwong/capstone-juris-scraper', 
+        force_pull=True
+    )
+
     # t1 = DockerOperator(
     #     task_id = 'scrape_jurisprudence'
     #     xcom = True # set to True to get all output in terminal 
