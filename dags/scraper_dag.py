@@ -352,7 +352,7 @@ def upload_img_to_gcs(img, uploaded_filename, service_secret=os.environ.get('SER
 
 
 with DAG(
-    'coffee_lake_scrapers-v1',
+    'capstone-legal-v1',
     # These args will get passed on to each operator
     # You can override them on a per-task basis during operator initialization
     default_args={
@@ -388,6 +388,10 @@ with DAG(
         dag=dag
     )
 
+    t1 = DockerOperator(
+        task_id = 'scrape_jurisprudence'
+        xcom = True # set to True to get all output in terminal 
+    )
     # ETL 
     # t1 >> [philstar_nation_feed()] >> t1_end >> t2 >> [word_count()] >> t2_end >> t3 >> [load_data()] >> t3_end >> t4 >> [map_images(), upload_imgs()] >> t4_end
 
