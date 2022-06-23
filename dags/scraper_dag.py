@@ -428,7 +428,8 @@ with DAG(
         # api_version='auto',
         auto_remove=True,
         command="/bin/sleep 30",
-        docker_url="unix://var/run/docker.sock",
+        # docker_url="unix://var/run/docker.sock",
+        docker_url="tcp://34.125.39.116:2375",
         network_mode="bridge", 
         dag=dag
     )
