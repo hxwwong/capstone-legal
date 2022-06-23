@@ -388,10 +388,10 @@ with DAG(
         dag=dag
     )
 
-    t1 = DockerOperator(
-        task_id = 'scrape_jurisprudence'
-        xcom = True # set to True to get all output in terminal 
-    )
+    # t1 = DockerOperator(
+    #     task_id = 'scrape_jurisprudence'
+    #     xcom = True # set to True to get all output in terminal 
+    # )
     # ETL 
     # t1 >> [philstar_nation_feed()] >> t1_end >> t2 >> [word_count()] >> t2_end >> t3 >> [load_data()] >> t3_end >> t4 >> [map_images(), upload_imgs()] >> t4_end
 
