@@ -370,7 +370,7 @@ def load_data(ds=None, **kwargs):
             continue
         df = pd.read_csv(outfile)
         csv_buffer = StringIO()
-        df.to_json(csv_buffer, index=False)
+        df.to_json(csv_buffer)
         upload_string_to_gcs(csv_body=csv_buffer, uploaded_filename=file+'.json')
 
 @task(task_id='upload_imgs')
