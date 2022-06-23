@@ -422,6 +422,14 @@ with DAG(
         dag=dag
     )
 
+    t_docker = DockerOperator(
+        task_id='docker_selenium',
+        image='hxwwo/capstone-juris-scraper',
+        api_version='auto',
+        auto_remove=True,
+        docker_url="unix://var/run/docker.sock",
+        network_mode="bridge"
+    )
     
     
     # t1 = DockerOperator(
@@ -436,7 +444,7 @@ with DAG(
 ############################################ ETL PIPELINE #######################################################
 #################################################################################################################
 
-t_start >> [scrape_eo(), scrape_proc(), scrape_RA(), load_data()] >> t_end
+t_start >> [scrape_eo(), scrape_proc(), scrape_RA(), t_docker, load_data()] >> t_end
 
 
 
