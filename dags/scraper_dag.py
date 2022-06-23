@@ -28,18 +28,22 @@ import dotenv
 from airflow import DAG
 from airflow.decorators import task
 # from airflow.utils.dates import days_ago
+
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.bash import BashOperator
 from airflow.models import Variable
 # from airflow.providers.discord.operators.discord_webhook import DiscordWebhookOperator
 from datetime import datetime
 
+# importing for running the dockerized selenium image 
+from airflow.providers.docker.operators.docker import DockerOperator
+
 
 
 # Our bucket
-BUCKET_NAME = "news_sites"
+BUCKET_NAME = "capstone-legal"
 
-MY_FOLDER_PREFIX = "fem_hans"
+MY_FOLDER_PREFIX = "hans-capstone"
 
 DATA_PATH = '/opt/airflow/data/'
 
@@ -84,6 +88,88 @@ def scrape_proc(ds=None, **kwargs):
     df.to_csv(f"{DATA_PATH}proclamations.csv", index=False)
     return 'Success'
     
+@task(task_id='scrape_EOs')
+def scrape_eo(ds=None, **kwargs):
+    r = requests.get('https://www.officialgazette.gov.ph/section/executive-orders/')
+    html = BeautifulSoup(r.content, 'lxml')
+
+    EOs = []
+
+    summary_divs = html.find_all("div", {"class":"entry-summary"})
+    titles = html.find_all('h3')[1:-1] # slicing to remove the unneeded header/footer h3 elements 
+
+    for i in range(0, len(summary_divs)): 
+        summaries = summary_divs[i].p 
+        summary_content = summaries.get_text() 
+
+        link = titles[i].find('a')
+        url = link.get('href')
+        id = link.get_text() 
+        data = {'eo_id': id, 
+                'title': summary_content, 
+                'URL': url}
+
+        EOs.append(data)
+    df = pd.DataFrame(EOs)
+    df.to_csv(f"{DATA_PATH}executive_orders.csv", index=False) 
+    return "Successfully srcraped EOs"
+
+@task(task_id='scrape_republic_acts')
+def scrape_RA(ds=None, **kwargs): 
+    def scrape_page():
+        r = requests.get('https://lawphil.net/statutes/repacts/ra2021/ra2021.html')
+        html = BeautifulSoup(r.content, 'lxml')
+
+        table_RAs = html.find_all('table')[2]
+        table_rows = table_RAs.find_all('tr')
+        
+        RAs = [] 
+        base_url = 'https://lawphil.net/statutes/repacts/ra2021/'
+        
+        for idx, row in enumerate(table_rows): 
+            if idx == 0: 
+                continue
+            
+            if idx == (len(table_rows)-2): 
+                break
+            
+            # print(row.text)
+            row_data = row.find_all('td')
+            ra_num = row_data[0].find('a').text
+            ra_date = row_data[0].text.split(ra_num)[1].strip()
+            ra_title = row_data[1].text.strip()
+            url = ""
+            link = row_data[0].find('a')
+            
+            
+            try: 
+                url = link['href']
+            except: 
+                url = link['xref']
+            
+            data = {'id': ra_num, 'date': ra_date, 'title': ra_title, 'url':f"{base_url}{url}"}
+            RAs.append(data)
+
+        return RAs 
+
+    def scrape_RAs(url): 
+        sleep(1)
+        try:
+            r = requests.get(url)
+            html = BeautifulSoup(r.content, 'lxml')
+
+            table = html.find_all('table')[0]
+            
+            return table.text.strip() 
+    # 36 /124 have broken links -- have been designated null -- add to documentation 
+        except: 
+            return None
+
+    df = pd.DataFrame(scrape_page())
+    df['body_text'] = df['url'].apply(lambda x: scrape_RAs(x))
+    df.to_csv(f"{DATA_PATH}ra_data.csv", index=False)
+    return "Successfully scraped Republic Acts"
+
 
 @task(task_id="scrape_jurisprudence")
 def scrape_juris(ds=None, **kwargs): 
@@ -305,7 +391,7 @@ with DAG(
     # ETL 
     # t1 >> [philstar_nation_feed()] >> t1_end >> t2 >> [word_count()] >> t2_end >> t3 >> [load_data()] >> t3_end >> t4 >> [map_images(), upload_imgs()] >> t4_end
 
-    t0 >> scrape_juris() 
+    t0 >> scrape_juris() >> scrape_eo() >> scrape_proc() >> scrape_RA() 
     # # add commas to the list for extra functions 
     # add @task decorator, make the ids unique
 
