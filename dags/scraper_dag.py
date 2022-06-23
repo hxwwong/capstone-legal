@@ -269,15 +269,92 @@ def word_count(ds=None, **kwargs):
 
     files = os.listdir(DATA_PATH)
     print(files)
-    for file in files: 
+    for file in files:
         outfile = f"{DATA_PATH}{file}"
-        if not outfile.endswith('.csv'): 
+        if not outfile.endswith('.csv'):
             continue
         df = pd.read_csv(outfile)
-        df['sum_word_cnt'] = df['summary'].apply(lambda x: len(x.split()))
-        df['dict_word_cnt'] = df['summary'].apply(lambda x: word_count(x))
+        ################################# TODO: IMPORTANT #########################################
+        # you need to find the column where the text/content is located e.g. 'body' or 'content'
+        # and add a conditional logic below
+        ###########################################################################################
+        if outfile.startswith(f'{DATA_PATH}cases'):
+            df['sum_word_cnt'] = df['body_text'].apply(lambda x: len(x.split()))
+            df['dict_word_cnt'] = df['body_text'].apply(lambda x: word_count(x))
+            print(df[['body_text','sum_word_cnt', 'dict_word_cnt']])
+
+        elif outfile.startswith(f'{DATA_PATH}executive'):
+            df['sum_word_cnt'] = df['title'].apply(lambda x: len(x.split()))
+            df['dict_word_cnt'] = df['title'].apply(lambda x: word_count(x))
+            print(df[['title','sum_word_cnt', 'dict_word_cnt']])
+        elif outfile.startswith(f'{DATA_PATH}proclamations'): 
+            df['sum_word_cnt'] = df['title'].apply(lambda x: len(x.split()))
+            df['dict_word_cnt'] = df['title'].apply(lambda x: word_count(x))
+            print(df[['title','sum_word_cnt', 'dict_word_cnt']])
+        elif outfile.startswith(f'{DATA_PATH}business_world'):
+            df['title_sum_word_cnt'] = df['title'].apply(lambda x: len(x.split()))
+            df['title_dict_word_cnt'] = df['title'].apply(lambda x: word_count(x))
+            df['body_sum_word_cnt'] = df['body_text'].apply(lambda x: len(x.split()))
+            df['body_dict_word_cnt'] = df['body_text'].apply(lambda x: word_count(x))
+            print(df[['title', 'body_text','title_sum_word_cnt', 'title_dict_word_cnt', 'body_sum_word_cnt', 'body_dict_word_cnt']])
+        ###########################################################################################
+
         df.to_csv(outfile, index=False)
-        print(df[['summary','sum_word_cnt', 'dict_word_cnt']])
+        
+
+        
+
+
+# NER
+@task(task_id='spacy_ner')
+def spacy_ner(ds=None, **kwargs):
+    nlp = spacy.load("/model/en_core_web_sm/en_core_web_sm-3.3.0")
+    def ner(text):
+        doc = nlp(text)
+        # print("Noun phrases:", [chunk.text for chunk in doc.noun_chunks])
+        # print("Verbs:", [token.lemma_ for token in doc if token.pos_ == "VERB"])
+        ner = {}
+        for entity in doc.ents:
+            ner[entity.text] = entity.label_
+            print(entity.text, entity.label_)
+        return ner
+
+    files = os.listdir(DATA_PATH)
+    for file in files:
+        outfile = f"{DATA_PATH}{file}"
+        if not outfile.endswith('.csv'):
+            continue
+        df = pd.read_csv(outfile)
+
+        ################################# TODO: IMPORTANT #########################################
+        # you need to find the column where the text/content is located e.g. 'summary' or 'content'
+        # and add a conditional logic below
+        ###########################################################################################
+
+
+        if outfile.startswith(f'{DATA_PATH}cases'):
+            df['NER'] = df['body_text'].apply(lambda x: ner(x))
+            print(df['NER'])
+
+        elif outfile.startswith(f'{DATA_PATH}executive'):
+            df['NER'] = df['title'].apply(lambda x: ner(x))
+            print(df['NER'])
+        elif outfile.startswith(f'{DATA_PATH}proclamations'): 
+            df['NER'] = df['title'].apply(lambda x: ner(x))
+            print(df['NER'])
+            
+        elif outfile.startswith(f'{DATA_PATH}business_world'):
+            df['NER_title'] = df['title'].apply(lambda x: ner(x))
+            df['NER_body'] = df['body_text'].apply(lambda x: ner(x))
+           
+            print(df[['NER_title', 'NER_body']])
+        ###########################################################################################
+        df.to_csv(outfile, index=False)
+        ###########################################################################################
+
+
+
+
 
 
 #################################################################################################################
@@ -450,7 +527,7 @@ with DAG(
 ############################################ ETL PIPELINE #######################################################
 #################################################################################################################
 
-t_start >> [scrape_eo(), scrape_proc(), scrape_RA(), t_docker] >> load_data() >> t_end
+t_start >> [scrape_eo(), scrape_proc(), scrape_RA(), t_docker] >> word_count() >> spacy_ner() >> load_data() >> t_end
 
 
 
