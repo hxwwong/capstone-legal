@@ -391,7 +391,7 @@ with DAG(
     # ETL 
     # t1 >> [philstar_nation_feed()] >> t1_end >> t2 >> [word_count()] >> t2_end >> t3 >> [load_data()] >> t3_end >> t4 >> [map_images(), upload_imgs()] >> t4_end
 
-    t0 >> scrape_juris() >> scrape_eo() >> scrape_proc() >> scrape_RA() 
+    t0 >> scrape_eo() >> scrape_proc() >> scrape_RA() 
     # # add commas to the list for extra functions 
     # add @task decorator, make the ids unique
 
