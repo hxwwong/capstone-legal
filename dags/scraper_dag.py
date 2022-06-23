@@ -427,9 +427,8 @@ with DAG(
         image='hxwwo/capstone-juris-scraper',
         # api_version='auto',
         auto_remove=True,
-        command="/bin/sleep 30",
-        # docker_url="unix://var/run/docker.sock",
-        docker_url="tcp://34.125.39.116:2375",
+        # command="/bin/sleep 30",
+        docker_url="unix://var/run/docker.sock",
         network_mode="bridge", 
         dag=dag
     )
