@@ -430,6 +430,10 @@ with DAG(
         # command="/bin/sleep 30",
         # docker_url="unix://var/run/docker.sock",
         network_mode="bridge", 
+        environment={'CDA_UN':Variable.get('CDA_UN'), 
+                     'CDA_PW':Variable.get('CDA_PW'), 
+                     'SERVICE_ACCESS_KEY':Variable.get('SERVICE_ACCESS_KEY'), 
+                     'SERVICE_SECRET':Variable.get('SERVICE_SECRET')}, 
         dag=dag
     )
     
