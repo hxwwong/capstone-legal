@@ -279,19 +279,19 @@ def spacy_ner(ds=None, **kwargs):
         ###########################################################################################
 
         if outfile.startswith(f'{DATA_PATH}cases'):
-            df['NER'] = df['body_text'].apply(lambda x: ner(x))
+            df['NER'] = df['body_text'].apply(lambda x: ner(x)).astype('str')
             print(df['NER'])
 
         elif outfile.startswith(f'{DATA_PATH}executive'):
-            df['NER'] = df['title'].apply(lambda x: ner(x))
+            df['NER'] = df['title'].apply(lambda x: ner(x)).astype('str')
             print(df['NER'])
         elif outfile.startswith(f'{DATA_PATH}proclamations'): 
-            df['NER'] = df['title'].apply(lambda x: ner(x))
+            df['NER'] = df['title'].apply(lambda x: ner(x)).astype('str')
             print(df['NER'])
             
         elif outfile.startswith(f'{DATA_PATH}ra_data'):
-            df['NER_title'] = df['title'].apply(lambda x: ner(x))
-            df['NER_body'] = df['body_text'].apply(lambda x: ner(x))
+            df['NER_title'] = df['title'].apply(lambda x: ner(x)).astype('str')
+            df['NER_body'] = df['body_text'].apply(lambda x: ner(x)).astype('str')
            
             print(df[['NER_title', 'NER_body']])
         ###########################################################################################
