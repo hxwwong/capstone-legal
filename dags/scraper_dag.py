@@ -320,38 +320,6 @@ def load_data(ds=None, **kwargs):
         # upload_string_to_gcs(csv_body='df.parquet.gzip', uploaded_filename=file)
         upload_file_to_gcs(remote_file_name=file, local_file_name='df.parquet')
 
-@task(task_id='upload_imgs')
-def upload_imgs(ds=None, **kwargs): 
-    files = os.listdir(f"{DATA_PATH}images/")
-    for file in files: 
-        outfile = f"{DATA_PATH}images/{file}"
-        if not outfile.endswith('.png'): 
-            continue
-        with open(outfile, "rb") as img: 
-            f = img.read()
-            b = bytearray(f)
-
-        # img = Image.open(outfile)
-        # byteio = BytesIO()
-        # img = img.save(byteio, 'PNG')
-            print(b)
-            upload_img_to_gcs(img=b, uploaded_filename=file)
-
-# testing spacey 
-# @task(task_id='spacey')
-# def test_spacey(ds=None, **kwargs):  
-#     nlp = spacy.load("en_core_web_sm")
-#     text = ("When Sebastian Thrun started working on self-driving cars at "
-#         "Google in 2007, few people outside of the company took him "
-#         "seriously. “I can tell you very senior CEOs of major American "
-#         "car companies would shake my hand and turn away because I wasn’t "
-#         "worth talking to,” said Thrun, in an interview with Recode earlier "
-#         "this week.")
-#     doc = nlp(text)
-#     print("Noun phrases:", [chunk.text for chunk in doc.noun_chunks])
-#     print("Verbs:", [token.lemma_ for token in doc if token.pos_ == "VERB"])
-#     for entity in doc.ents:
-#         print(entity.text, entity.label_)
 
 def upload_file_to_gcs(remote_file_name, local_file_name):
     gcs_client = boto3.client(
@@ -364,39 +332,12 @@ def upload_file_to_gcs(remote_file_name, local_file_name):
 
     gcs_client.upload_file(local_file_name, BUCKET_NAME, remote_file_name)
 
-# def upload_string_to_gcs(csv_body, uploaded_filename, service_secret=os.environ.get('SERVICE_SECRET')):
-#     gcs_resource = boto3.resource(
-#         "s3",
-#         region_name="auto",
-#         endpoint_url="https://storage.googleapis.com",
-#         aws_access_key_id=Variable.get("SERVICE_ACCESS_KEY"),
-#         aws_secret_access_key=Variable.get("SERVICE_SECRET"),
-#     )
-#     gcs_resource.Object(BUCKET_NAME, MY_FOLDER_PREFIX + "/" + uploaded_filename).put(Body=csv_body.getvalue())
-
-def upload_img_to_gcs(img, uploaded_filename, service_secret=os.environ.get('SERVICE_SECRET')):
-    gcs_resource = boto3.resource(
-        "s3",
-        region_name="auto",
-        endpoint_url="https://storage.googleapis.com",
-        aws_access_key_id=Variable.get("SERVICE_ACCESS_KEY"),
-        aws_secret_access_key=Variable.get("SERVICE_SECRET"),
-    )
-    gcs_resource.Object(BUCKET_NAME, MY_FOLDER_PREFIX + "/images/" + uploaded_filename).put(Body=img)
-
-
-
-
-# def upload_img_to_gcs(img, uploaded_filename, service_secret=os.environ.get('SERVICE_SECRET')):   
-#     client = storage.Client.from_service_account_json(json_credentials_path='/keys/gcp_personal.json')
-#     bucket = client.get_bucket(BUCKET_NAME)
-#     object_name_in_gcs_bucket = bucket.blob(img)
-#     object_name_in_gcs_bucket.upload_from_filename(MY_FOLDER_PREFIX + "/images/" + uploaded_filename)
 
 #################################################################################################################
 ############################################ TASK 4 - CLEANUP ###################################################
 #################################################################################################################
 
+# be careful when running this task without any pre-generated files locally - it will break the container
 @task(task_id='delete_residuals')
 def delete_residuals(ds=None, **kwargs): 
     files = os.listdir(f"{DATA_PATH}")
@@ -420,7 +361,7 @@ with DAG(
     # You can override them on a per-task basis during operator initialization
     default_args={
         # 'depends_on_past': False,
-        'email': ['hxwwong@gmail.com'],
+        # 'email': ['hxwwong@gmail.com'],
         # 'email_on_failure': False,
         # 'email_on_retry': False,
         # 'retries': 1,
@@ -439,7 +380,7 @@ with DAG(
         # 'trigger_rule': 'all_success'
     },
     description='legal document webscrapers',
-    schedule_interval=timedelta(days=1),
+    schedule_interval=timedelta(days=7), # scraping this weekly 
     start_date=datetime(2022, 6, 15),
     catchup=False,
     tags=['scrapers'],
@@ -486,7 +427,7 @@ with DAG(
 ############################################ ETL PIPELINE #######################################################
 #################################################################################################################
 
-t_start >> t_docker >> [scrape_eo(), scrape_proc(), scrape_RA()] >> word_count() >> spacy_ner() >> load_data() >> t_end 
+t_start >> t_docker >> [scrape_eo(), scrape_proc(), scrape_RA()] >> word_count() >> spacy_ner() >> load_data() >> delete_residuals() >> t_end 
 
 
 
