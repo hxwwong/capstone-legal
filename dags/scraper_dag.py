@@ -449,6 +449,7 @@ with DAG(
                      'CDA_PW':Variable.get('CDA_PW'), 
                      'SERVICE_ACCESS_KEY':Variable.get('SERVICE_ACCESS_KEY'), 
                      'SERVICE_SECRET':Variable.get('SERVICE_SECRET')}, 
+        force_pull=True,
         dag=dag
     )
     
