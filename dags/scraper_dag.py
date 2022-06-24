@@ -199,7 +199,7 @@ def word_count(ds=None, **kwargs):
         outfile = f"{DATA_PATH}{file}"
         if not outfile.endswith('.gzip'):
             continue
-        df = pd.read_csv(outfile)
+        df = pd.read_parquet(outfile)
         ################################# TODO: IMPORTANT #########################################
         # you need to find the column where the text/content is located e.g. 'body' or 'content'
         # and add a conditional logic below
@@ -344,15 +344,15 @@ def upload_file_to_gcs(remote_file_name, local_file_name):
 
     gcs_client.upload_file(local_file_name, BUCKET_NAME, remote_file_name)
 
-def upload_string_to_gcs(csv_body, uploaded_filename, service_secret=os.environ.get('SERVICE_SECRET')):
-    gcs_resource = boto3.resource(
-        "s3",
-        region_name="auto",
-        endpoint_url="https://storage.googleapis.com",
-        aws_access_key_id=Variable.get("SERVICE_ACCESS_KEY"),
-        aws_secret_access_key=Variable.get("SERVICE_SECRET"),
-    )
-    gcs_resource.Object(BUCKET_NAME, MY_FOLDER_PREFIX + "/" + uploaded_filename).put(Body=csv_body.getvalue())
+# def upload_string_to_gcs(csv_body, uploaded_filename, service_secret=os.environ.get('SERVICE_SECRET')):
+#     gcs_resource = boto3.resource(
+#         "s3",
+#         region_name="auto",
+#         endpoint_url="https://storage.googleapis.com",
+#         aws_access_key_id=Variable.get("SERVICE_ACCESS_KEY"),
+#         aws_secret_access_key=Variable.get("SERVICE_SECRET"),
+#     )
+#     gcs_resource.Object(BUCKET_NAME, MY_FOLDER_PREFIX + "/" + uploaded_filename).put(Body=csv_body.getvalue())
 
 def upload_img_to_gcs(img, uploaded_filename, service_secret=os.environ.get('SERVICE_SECRET')):
     gcs_resource = boto3.resource(
@@ -385,7 +385,7 @@ def delete_residuals(ds=None, **kwargs):
         print(file)
         if os.path.isdir(outfile):
             shutil.rmtree(outfile)
-        elif not outfile.endswith('.csv'):
+        elif not outfile.endswith('.gzip'):
             continue 
         else: 
             os.remove(outfile)
@@ -439,7 +439,7 @@ with DAG(
 
     t_docker = DockerOperator(
         task_id='docker-scrape-cases',
-        image='hxwwong/capstone-juris-scraper',
+        image='hxwwong/capstone-juris-scraper:latest',
         # api_version='auto',
         auto_remove=True,
         # command="/bin/sleep 30",
@@ -450,6 +450,8 @@ with DAG(
                      'SERVICE_ACCESS_KEY':Variable.get('SERVICE_ACCESS_KEY'), 
                      'SERVICE_SECRET':Variable.get('SERVICE_SECRET')}, 
         force_pull=True,
+        mount_tmp_dir=True,
+        host_tmp_dir=DATA_PATH,
         dag=dag
     )
     
