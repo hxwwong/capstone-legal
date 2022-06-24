@@ -275,7 +275,7 @@ def spacy_ner(ds=None, **kwargs):
            
             print(df[['NER_title', 'NER_body']])
         ###########################################################################################
-        df.to_paquet(outfile, compression='gzip')
+        df.to_parquet(outfile, compression='gzip')
         ###########################################################################################
 
 
