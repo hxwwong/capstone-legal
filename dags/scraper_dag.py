@@ -187,7 +187,11 @@ def scrape_RA(ds=None, **kwargs):
 def word_count(ds=None, **kwargs):
 
     def word_count(text):
-        words = text.split() # needs handling for Nonetype objects 
+        # returning an empty dict for blank/empty text
+        if text is None: 
+            return {}
+
+        words = text.split()  
     
         # filtering for words w/ special chars
         temp = []
