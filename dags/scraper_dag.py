@@ -369,9 +369,9 @@ def load_data(ds=None, **kwargs):
         if not outfile.endswith('.csv'): 
             continue
         df = pd.read_csv(outfile)
-        csv_buffer = StringIO()
-        df.to_parquet(csv_buffer)
-        upload_string_to_gcs(csv_body=csv_buffer, uploaded_filename=file)
+        # csv_buffer = StringIO()
+        df.to_parquet('df.parquet.gzip', compression='gzip')
+        upload_string_to_gcs(csv_body='df.parquet.gzip', uploaded_filename=file)
 
 @task(task_id='upload_imgs')
 def upload_imgs(ds=None, **kwargs): 
