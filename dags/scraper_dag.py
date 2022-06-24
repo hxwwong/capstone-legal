@@ -370,8 +370,9 @@ def load_data(ds=None, **kwargs):
             continue
         df = pd.read_csv(outfile)
         # csv_buffer = StringIO()
-        df.to_parquet('df.parquet.gzip', compression='gzip')
-        upload_string_to_gcs(csv_body='df.parquet.gzip', uploaded_filename=file)
+        local_file_name = df.to_parquet('df.parquet.gzip', compression='gzip')
+        # upload_string_to_gcs(csv_body='df.parquet.gzip', uploaded_filename=file)
+        upload_file_to_gcs(remote_file_name=file, local_file_name=local_file_name)
 
 @task(task_id='upload_imgs')
 def upload_imgs(ds=None, **kwargs): 
@@ -405,6 +406,17 @@ def upload_imgs(ds=None, **kwargs):
 #     print("Verbs:", [token.lemma_ for token in doc if token.pos_ == "VERB"])
 #     for entity in doc.ents:
 #         print(entity.text, entity.label_)
+
+def upload_file_to_gcs(remote_file_name, local_file_name):
+    gcs_client = boto3.client(
+        "s3",
+        region_name="auto",
+        endpoint_url="https://storage.googleapis.com",
+        aws_access_key_id=Variable.get("SERVICE_ACCESS_KEY"),
+        aws_secret_access_key=Variable.get("SERVICE_SECRET"),
+    )
+
+    gcs_client.upload_file(local_file_name, BUCKET_NAME, remote_file_name)
 
 def upload_string_to_gcs(csv_body, uploaded_filename, service_secret=os.environ.get('SERVICE_SECRET')):
     gcs_resource = boto3.resource(
