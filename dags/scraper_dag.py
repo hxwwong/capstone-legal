@@ -438,7 +438,7 @@ with DAG(
     )
 
     t_docker = DockerOperator(
-        task_id='docker-scrape-cases',
+        task_id='docker-cases-ETL',
         image='hxwwong/capstone-juris-scraper:latest',
         # api_version='auto',
         auto_remove=True,
@@ -450,8 +450,6 @@ with DAG(
                      'SERVICE_ACCESS_KEY':Variable.get('SERVICE_ACCESS_KEY'), 
                      'SERVICE_SECRET':Variable.get('SERVICE_SECRET')}, 
         force_pull=True,
-        mount_tmp_dir=True,
-        host_tmp_dir=DATA_PATH,
         dag=dag
     )
     
@@ -468,7 +466,9 @@ with DAG(
 ############################################ ETL PIPELINE #######################################################
 #################################################################################################################
 
-t_start >> [scrape_eo(), scrape_proc(), scrape_RA(), t_docker] >> word_count() >> spacy_ner() >> load_data() >> t_end
+t_start >> [
+    [scrape_eo(), scrape_proc(), scrape_RA()] >> word_count() >> spacy_ner() >> load_data()
+    , t_docker] >> t_end 
 
 
 
