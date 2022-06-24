@@ -170,7 +170,7 @@ def scrape_RA(ds=None, **kwargs):
             return None
 
     df = pd.DataFrame(scrape_page())
-    df['body_text'] = df['url'].apply(lambda x: scrape_RAs(x))
+    df['body_text'] = df['url'].apply(lambda x: scrape_RAs(x)).astype('str')
     df.to_parquet(f"{DATA_PATH}ra_data.parquet")
     # df.to_csv(f"{DATA_PATH}ra_data.csv", index=False)
     return "Successfully scraped Republic Acts"
