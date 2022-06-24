@@ -1,3 +1,4 @@
+from bz2 import compress
 from datetime import timedelta
 import boto3
 import os
@@ -94,7 +95,8 @@ def scrape_proc(ds=None, **kwargs):
         return proclamations
         
     df = pd.DataFrame(scrape_procs())
-    df.to_csv(f"{DATA_PATH}proclamations.csv", index=False)
+    df.to_parquet(f"{DATA_PATH}proclamations.gzip", compression='gzip')
+    # df.to_csv(f"{DATA_PATH}proclamations.csv", index=False)
     return 'Success'
     
 @task(task_id='scrape_EOs')
@@ -117,7 +119,8 @@ def scrape_eo(ds=None, **kwargs):
 
         EOs.append(data)
     df = pd.DataFrame(EOs)
-    df.to_csv(f"{DATA_PATH}executive_orders.csv", index=False) 
+    df.to_parquet(f"{DATA_PATH}executive_orders.gzip", compression='gzip')
+    # df.to_csv(f"{DATA_PATH}executive_orders.csv", index=False) 
     return "Successfully srcraped EOs"
 
 @task(task_id='scrape_republic_acts')
@@ -168,88 +171,11 @@ def scrape_RA(ds=None, **kwargs):
 
     df = pd.DataFrame(scrape_page())
     df['body_text'] = df['url'].apply(lambda x: scrape_RAs(x))
-    df.to_csv(f"{DATA_PATH}ra_data.csv", index=False)
+    df.to_parquet(f"{DATA_PATH}ra_data.gzip", compression='gzip')
+    # df.to_csv(f"{DATA_PATH}ra_data.csv", index=False)
     return "Successfully scraped Republic Acts"
 
 
-# @task(task_id="scrape_jurisprudence")
-# def scrape_juris(ds=None, **kwargs): 
-#     login_page = "https://login.dlsu.idm.oclc.org/login?qurl=https://cdasiaonline.com%2fl%2fee17a146%2fsearch%3fyear_end%3d2022%26year_start%3d2022"
-
-#     # window setings 
-
-#     options = webdriver.ChromeOptions() 
-#     options.add_argument("--headless")
-#     options.add_argument("--start-maximized") 
-#     options.add_argument("--disable-notifications")
-#     options.add_argument("--incognito")
-
-#     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-#     driver.get(login_page)
-#     driver.maximize_window() 
-#     sleep(3) 
-
-#     # inputting credentials from the dotenv file 
-
-#     #  find_element(by=By.NAME, value=name)
-#     username = driver.find_element(by=By.NAME, value='user') 
-#     username.send_keys(Variables.get('CDA_UN'))
-#     sleep(1)
-
-#     password = driver.find_element(by=By.NAME, value='pass') 
-#     password.send_keys(Variables.get('CDA_PW'))
-#     sleep(1)
-
-#     submit_button = driver.find_element(by=By.NAME, value='login') 
-#     submit_button.click()
-#     sleep(3)
-
-#     # clicking the prompt after being redirected from login_page 
-#     continue_button = driver.find_element(by=By.CLASS_NAME, value='btn-card-submit')
-#     continue_button.click()
-
-#     #############
-#     ## SCRAPER ## 
-#     ############# 
-
-#     # collecting all the rows containing cases entries
-#     cases = driver.find_elements(by=By.CLASS_NAME, value='i-menu-newtab')
-#     data_list = [] 
-
-#     # finding  core elements within each case entry 
-#     for case in cases: 
-#         td = case.find_elements(by=By.TAG_NAME, value='td')
-#         ref_num = td[0].text # reference number (eg G.R. 1234)
-#         case_name = td[1].text # eg (Person A v. Person B.)
-#         judge = td[2].text # eg (HERNANDEZ, J)
-#         date = td[4].text # eg 2022-03-21
-#         url = case.get_attribute('data-href') # https://cdasia-online...
-
-#         # storing info as a dict for dataframe 
-#         data = {'ref_num': ref_num, 
-#                 'case': case_name, 
-#                 'judge': judge, 
-#                 'date':date, 
-#                 'url':url} 
-
-#         data_list.append(data)
-
-
-
-    # def scrape_cases(url): 
-    #     sleep(1)
-    #     # try:
-    #     driver.get(url)
-    #     doc = driver.find_element(by=By.CLASS_NAME, value='doc-view-container')
-        
-    #     return doc.text.strip()
-
-
-    # # exporting to a dataframe & csv
-    # df = pd.DataFrame(data_list)
-    # df['body_text'] = df['url'].apply(lambda x: scrape_cases(x))
-    # df.to_csv(f"{DATA_PATH}cases.csv", index=False)
-    # return 'Successfully scraped cases'
 
 
 
@@ -271,7 +197,7 @@ def word_count(ds=None, **kwargs):
     print(files)
     for file in files:
         outfile = f"{DATA_PATH}{file}"
-        if not outfile.endswith('.csv'):
+        if not outfile.endswith('.gzip'):
             continue
         df = pd.read_csv(outfile)
         ################################# TODO: IMPORTANT #########################################
@@ -291,7 +217,7 @@ def word_count(ds=None, **kwargs):
             df['sum_word_cnt'] = df['title'].apply(lambda x: len(x.split()))
             df['dict_word_cnt'] = df['title'].apply(lambda x: word_count(x))
             print(df[['title','sum_word_cnt', 'dict_word_cnt']])
-        elif outfile.startswith(f'{DATA_PATH}business_world'):
+        elif outfile.startswith(f'{DATA_PATH}ra_data'):
             df['title_sum_word_cnt'] = df['title'].apply(lambda x: len(x.split()))
             df['title_dict_word_cnt'] = df['title'].apply(lambda x: word_count(x))
             df['body_sum_word_cnt'] = df['body_text'].apply(lambda x: len(x.split()))
@@ -299,7 +225,8 @@ def word_count(ds=None, **kwargs):
             print(df[['title', 'body_text','title_sum_word_cnt', 'title_dict_word_cnt', 'body_sum_word_cnt', 'body_dict_word_cnt']])
         ###########################################################################################
 
-        df.to_csv(outfile, index=False)
+        df.to_parquet(outfile, compression='gzip')
+        
         
 
         
@@ -322,15 +249,14 @@ def spacy_ner(ds=None, **kwargs):
     files = os.listdir(DATA_PATH)
     for file in files:
         outfile = f"{DATA_PATH}{file}"
-        if not outfile.endswith('.csv'):
+        if not outfile.endswith('.gzip'):
             continue
-        df = pd.read_csv(outfile)
+        df = pd.read_parquet(outfile)
 
         ################################# TODO: IMPORTANT #########################################
         # you need to find the column where the text/content is located e.g. 'summary' or 'content'
         # and add a conditional logic below
         ###########################################################################################
-
 
         if outfile.startswith(f'{DATA_PATH}cases'):
             df['NER'] = df['body_text'].apply(lambda x: ner(x))
@@ -343,13 +269,13 @@ def spacy_ner(ds=None, **kwargs):
             df['NER'] = df['title'].apply(lambda x: ner(x))
             print(df['NER'])
             
-        elif outfile.startswith(f'{DATA_PATH}business_world'):
+        elif outfile.startswith(f'{DATA_PATH}ra_data'):
             df['NER_title'] = df['title'].apply(lambda x: ner(x))
             df['NER_body'] = df['body_text'].apply(lambda x: ner(x))
            
             print(df[['NER_title', 'NER_body']])
         ###########################################################################################
-        df.to_csv(outfile, index=False)
+        df.to_paquet(outfile, compression='gzip')
         ###########################################################################################
 
 
@@ -366,9 +292,9 @@ def load_data(ds=None, **kwargs):
     files = os.listdir(DATA_PATH)
     for file in files: 
         outfile = f"{DATA_PATH}{file}"
-        if not outfile.endswith('.csv'): 
+        if not outfile.endswith('gzip'): 
             continue
-        df = pd.read_csv(outfile)
+        df = pd.read_parquet(outfile)
         # csv_buffer = StringIO()
         df.to_parquet('df.parquet.gzip', compression='gzip')
         # upload_string_to_gcs(csv_body='df.parquet.gzip', uploaded_filename=file)
@@ -492,7 +418,7 @@ with DAG(
         # 'sla_miss_callback': yet_another_function,
         # 'trigger_rule': 'all_success'
     },
-    description='RSS parsers',
+    description='legal document webscrapers',
     schedule_interval=timedelta(days=1),
     start_date=datetime(2022, 6, 15),
     catchup=False,
@@ -512,7 +438,7 @@ with DAG(
     )
 
     t_docker = DockerOperator(
-        task_id='docker_selenium',
+        task_id='docker-scrape-cases',
         image='hxwwong/capstone-juris-scraper',
         # api_version='auto',
         auto_remove=True,
