@@ -95,7 +95,7 @@ def scrape_proc(ds=None, **kwargs):
         return proclamations
         
     df = pd.DataFrame(scrape_procs())
-    df.to_parquet(f"{DATA_PATH}proclamations.gzip", compression='gzip')
+    df.to_parquet(f"{DATA_PATH}proclamations.parquet")
     # df.to_csv(f"{DATA_PATH}proclamations.csv", index=False)
     return 'Success'
     
@@ -119,7 +119,7 @@ def scrape_eo(ds=None, **kwargs):
 
         EOs.append(data)
     df = pd.DataFrame(EOs)
-    df.to_parquet(f"{DATA_PATH}executive_orders.gzip", compression='gzip')
+    df.to_parquet(f"{DATA_PATH}executive_orders.parquet")
     # df.to_csv(f"{DATA_PATH}executive_orders.csv", index=False) 
     return "Successfully srcraped EOs"
 
@@ -171,7 +171,7 @@ def scrape_RA(ds=None, **kwargs):
 
     df = pd.DataFrame(scrape_page())
     df['body_text'] = df['url'].apply(lambda x: scrape_RAs(x))
-    df.to_parquet(f"{DATA_PATH}ra_data.gzip", compression='gzip')
+    df.to_parquet(f"{DATA_PATH}ra_data.parquet")
     # df.to_csv(f"{DATA_PATH}ra_data.csv", index=False)
     return "Successfully scraped Republic Acts"
 
@@ -197,7 +197,7 @@ def word_count(ds=None, **kwargs):
     print(files)
     for file in files:
         outfile = f"{DATA_PATH}{file}"
-        if not outfile.endswith('.gzip'):
+        if not outfile.endswith('.parquet'):
             continue
         df = pd.read_parquet(outfile)
         ################################# TODO: IMPORTANT #########################################
@@ -225,7 +225,7 @@ def word_count(ds=None, **kwargs):
             print(df[['title', 'body_text','title_sum_word_cnt', 'title_dict_word_cnt', 'body_sum_word_cnt', 'body_dict_word_cnt']])
         ###########################################################################################
 
-        df.to_parquet(outfile, compression='gzip')
+        df.to_parquet(outfile)
         
         
 
@@ -249,7 +249,7 @@ def spacy_ner(ds=None, **kwargs):
     files = os.listdir(DATA_PATH)
     for file in files:
         outfile = f"{DATA_PATH}{file}"
-        if not outfile.endswith('.gzip'):
+        if not outfile.endswith('.parquet'):
             continue
         df = pd.read_parquet(outfile)
 
@@ -275,7 +275,7 @@ def spacy_ner(ds=None, **kwargs):
            
             print(df[['NER_title', 'NER_body']])
         ###########################################################################################
-        df.to_parquet(outfile, compression='gzip')
+        df.to_parquet(outfile)
         ###########################################################################################
 
 
@@ -292,13 +292,13 @@ def load_data(ds=None, **kwargs):
     files = os.listdir(DATA_PATH)
     for file in files: 
         outfile = f"{DATA_PATH}{file}"
-        if not outfile.endswith('gzip'): 
+        if not outfile.endswith('parquet'): 
             continue
         df = pd.read_parquet(outfile)
         # csv_buffer = StringIO()
-        df.to_parquet('df.parquet.gzip', compression='gzip')
+        df.to_parquet('df.parquet')
         # upload_string_to_gcs(csv_body='df.parquet.gzip', uploaded_filename=file)
-        upload_file_to_gcs(remote_file_name=file, local_file_name='df.parquet.gzip')
+        upload_file_to_gcs(remote_file_name=file, local_file_name='df.parquet')
 
 @task(task_id='upload_imgs')
 def upload_imgs(ds=None, **kwargs): 
@@ -385,7 +385,7 @@ def delete_residuals(ds=None, **kwargs):
         print(file)
         if os.path.isdir(outfile):
             shutil.rmtree(outfile)
-        elif not outfile.endswith('.gzip'):
+        elif not outfile.endswith('.parquet'):
             continue 
         else: 
             os.remove(outfile)
