@@ -220,7 +220,7 @@ def word_count(ds=None, **kwargs):
         elif outfile.startswith(f'{DATA_PATH}ra_data'):
             df['title_sum_word_cnt'] = df['title'].apply(lambda x: len(x.split()))
             df['title_dict_word_cnt'] = df['title'].apply(lambda x: word_count(x))
-            df['body_sum_word_cnt'] = df['body_text'].apply(lambda x: len(x.split()))
+            df['body_sum_word_cnt'] = df['body_text'].apply(lambda x: ("" if len(x) == 0 else len(x.split())) )
             df['body_dict_word_cnt'] = df['body_text'].apply(lambda x: word_count(x))
             print(df[['title', 'body_text','title_sum_word_cnt', 'title_dict_word_cnt', 'body_sum_word_cnt', 'body_dict_word_cnt']])
         ###########################################################################################
