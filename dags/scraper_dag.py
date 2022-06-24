@@ -187,9 +187,25 @@ def scrape_RA(ds=None, **kwargs):
 def word_count(ds=None, **kwargs):
 
     def word_count(text):
-        words = text.split()
-        freq = [words.count(w) for w in words]
-        word_dict = dict(zip(words, freq))
+        words = text.split() # needs handling for Nonetype objects 
+    
+        # filtering for words w/ special chars
+        temp = []
+        for word in words: 
+            s = ""
+            for c in word: 
+                if((ord(c) >= 97 and ord(c) <= 122) or (ord(c) >= 65 and ord(c) <= 90)):
+                    s += c
+            temp.append(s.lower())
+        # filtering out words < 3 chars
+        temp2 = []
+        for word in temp: 
+            if len(word) >= 3:
+                temp2.append(word)
+                    
+                
+        freq = [temp2.count(w) for w in temp2]
+        word_dict = dict(zip(temp2, freq))
         return word_dict
 
 
@@ -206,22 +222,22 @@ def word_count(ds=None, **kwargs):
         ###########################################################################################
         if outfile.startswith(f'{DATA_PATH}cases'):
             df['sum_word_cnt'] = df['body_text'].apply(lambda x: len(x.split()))
-            df['dict_word_cnt'] = df['body_text'].apply(lambda x: word_count(x))
+            df['dict_word_cnt'] = df['body_text'].apply(lambda x: word_count(x)).astype('str')
             print(df[['body_text','sum_word_cnt', 'dict_word_cnt']])
 
         elif outfile.startswith(f'{DATA_PATH}executive'):
             df['sum_word_cnt'] = df['title'].apply(lambda x: len(x.split()))
-            df['dict_word_cnt'] = df['title'].apply(lambda x: word_count(x))
+            df['dict_word_cnt'] = df['title'].apply(lambda x: word_count(x)).astype('str')
             print(df[['title','sum_word_cnt', 'dict_word_cnt']])
         elif outfile.startswith(f'{DATA_PATH}proclamations'): 
             df['sum_word_cnt'] = df['title'].apply(lambda x: len(x.split()))
-            df['dict_word_cnt'] = df['title'].apply(lambda x: word_count(x))
+            df['dict_word_cnt'] = df['title'].apply(lambda x: word_count(x)).astype('str')
             print(df[['title','sum_word_cnt', 'dict_word_cnt']])
         elif outfile.startswith(f'{DATA_PATH}ra_data'):
             df['title_sum_word_cnt'] = df['title'].apply(lambda x: len(x.split()))
-            df['title_dict_word_cnt'] = df['title'].apply(lambda x: word_count(x))
-            df['body_sum_word_cnt'] = df['body_text'].apply(lambda x: ("" if x is None or len(x) == 0 else len(x.split())) )
-            df['body_dict_word_cnt'] = df['body_text'].apply(lambda x: word_count(x))
+            df['title_dict_word_cnt'] = df['title'].apply(lambda x: word_count(x)).astype('str')
+            df['body_sum_word_cnt'] = df['body_text'].apply(lambda x: ("" if x is None or len(x) == 0 else len(x.split())))
+            df['body_dict_word_cnt'] = df['body_text'].apply(lambda x: word_count(x)).astype('str')
             print(df[['title', 'body_text','title_sum_word_cnt', 'title_dict_word_cnt', 'body_sum_word_cnt', 'body_dict_word_cnt']])
         ###########################################################################################
 
