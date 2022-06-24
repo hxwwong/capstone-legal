@@ -370,9 +370,9 @@ def load_data(ds=None, **kwargs):
             continue
         df = pd.read_csv(outfile)
         # csv_buffer = StringIO()
-        local_file_name = df.to_parquet('df.parquet.gzip', compression='gzip')
+        df.to_parquet('df.parquet.gzip', compression='gzip')
         # upload_string_to_gcs(csv_body='df.parquet.gzip', uploaded_filename=file)
-        upload_file_to_gcs(remote_file_name=file, local_file_name=local_file_name)
+        upload_file_to_gcs(remote_file_name=file, local_file_name='df.parquet.gzip')
 
 @task(task_id='upload_imgs')
 def upload_imgs(ds=None, **kwargs): 
