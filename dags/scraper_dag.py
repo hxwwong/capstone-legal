@@ -283,6 +283,9 @@ def spacy_ner(ds=None, **kwargs):
     """
     nlp = spacy.load("/model/en_core_web_sm/en_core_web_sm-3.3.0")
     def ner(text):
+        """
+        Runs Name Entitry Recognition for each individual text input and returns a ner-object saved as a dictionary
+        """
         doc = nlp(text)
         # print("Noun phrases:", [chunk.text for chunk in doc.noun_chunks])
         # print("Verbs:", [token.lemma_ for token in doc if token.pos_ == "VERB"])
@@ -451,42 +454,6 @@ with DAG(
         force_pull=True,
         dag=dag
     )
-
-    ##################################################################################################################
-    ########################### setting up a branch operator for data integrity checks  ##############################
-    ##################################################################################################################
-    
-    # def choose_branch(**kwargs, result, input): 
-    #     if result > input: 
-    #         return ['task_a', 'task_b']
-    #     return['task_c']
-
-    # validation_step
-
-    # check_count = BigQueryCheckOperator(
-    #     task_id="check_len_cases",
-    #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
-    #     use_legacy_sql=False,
-    # )
-
-    # check_count = BigQueryCheckOperator(
-    #     task_id="check_count_eos",
-    #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
-    #     use_legacy_sql=False,
-    # )
-
-    # check_count = BigQueryCheckOperator(
-    #     task_id="check_count_procs",
-    #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_3}",
-    #     use_legacy_sql=False,
-    # )
-
-    # check_count = BigQueryCheckOperator(
-    #     task_id="check_count_",
-    #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_4}",
-    #     use_legacy_sql=False,
-    # )
-    
     
     
 #################################################################################################################
