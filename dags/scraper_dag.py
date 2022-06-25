@@ -29,24 +29,26 @@ import dotenv
 from airflow import DAG
 from airflow.decorators import task
 # from airflow.utils.dates import days_ago
-
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.bash import BashOperator
 from airflow.models import Variable
-# from airflow.providers.discord.operators.discord_webhook import DiscordWebhookOperator
+# from airflow.providers.discord.operators.discord_webhook import DiscordWebhookOperator 
 from datetime import datetime
 
-# importing for running the dockerized selenium image 
-from airflow.providers.docker.operators.docker import DockerOperator
+# importing provider packages 
+from airflow.providers.docker.operators.docker import DockerOperator # for the dockerized selenium task 
+from airflow.providers.google.cloud.operators.bigquery import BigQueryCheckOperator
 
 
 
-# Our bucket
-BUCKET_NAME = "capstone-legal"
 
-MY_FOLDER_PREFIX = "hans-capstone"
-
-DATA_PATH = '/opt/airflow/data/'
+BUCKET_NAME = "capstone-legal" # Our GCP bucket 
+DATA_PATH = '/opt/airflow/data/' # VM's data folder
+DATASET = "legal_documents"
+TABLE_1 = "cases"
+TABLE_2 = "executive_orders"
+TABLE_3 = "proclamations"
+TABLE_4 = "republic_acts"
 
 
 
@@ -413,21 +415,42 @@ with DAG(
         force_pull=True,
         dag=dag
     )
-    
-    
-    # t1 = DockerOperator(
-    #     task_id = 'scrape_jurisprudence'
-    #     xcom = True # set to True to get all output in terminal 
-    # )
-    # ETL 
-    # t1 >> [philstar_nation_feed()] >> t1_end >> t2 >> [word_count()] >> t2_end >> t3 >> [load_data()] >> t3_end >> t4 >> [map_images(), upload_imgs()] >> t4_end
 
+    ##################################################################################################################
+    ########################### setting up a branch operator for data integrity checks  ##############################
+    ##################################################################################################################
+    
+    # check_count = BigQueryCheckOperator(
+    #     task_id="check_count",
+    #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
+    #     use_legacy_sql=False,
+    # )
+
+    # check_count = BigQueryCheckOperator(
+    #     task_id="check_count",
+    #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
+    #     use_legacy_sql=False,
+    # )
+
+    # check_count = BigQueryCheckOperator(
+    #     task_id="check_count",
+    #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_3}",
+    #     use_legacy_sql=False,
+    # )
+
+    # check_count = BigQueryCheckOperator(
+    #     task_id="check_count",
+    #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_4}",
+    #     use_legacy_sql=False,
+    # )
+    
+    
     
 #################################################################################################################
 ############################################ ETL PIPELINE #######################################################
 #################################################################################################################
 
-t_start >> t_docker >> [scrape_eo(), scrape_proc(), scrape_RA()] >> word_count() >> spacy_ner() >> load_data() >> delete_residuals() >> t_end 
+t_start >> t_docker >> [scrape_eo(), scrape_proc(), scrape_RA()] >> word_count() >> spacy_ner() >> load_data() >> check_count() >> delete_residuals() >> t_end 
 
 
 
