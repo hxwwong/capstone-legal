@@ -450,7 +450,7 @@ with DAG(
 ############################################ ETL PIPELINE #######################################################
 #################################################################################################################
 
-t_start >> t_docker >> [scrape_eo(), scrape_proc(), scrape_RA()] >> word_count() >> spacy_ner() >> load_data() >> check_count() >> delete_residuals() >> t_end 
+t_start >> t_docker >> [scrape_eo(), scrape_proc(), scrape_RA()] >> word_count() >> spacy_ner() >> load_data() >> delete_residuals() >> t_end 
 
 
 
