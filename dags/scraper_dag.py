@@ -137,12 +137,12 @@ def scrape_RA(ds=None, **kwargs):
         Scrapes the base URL and returns a dictionary containing the column names of each row.
         A try and except clause has been added to account for broken links, which comprise around 1/3 of the target page
         """
-        r = requests.get('https://lawphil.net/statutes/repacts/ra2022/ra2022.html')
+        r = requests.get('https://lawphil.net/statutes/repacts/ra2021/ra2021.html')
         html = BeautifulSoup(r.content, 'lxml')
         table_RAs = html.find_all('table')[2]
         table_rows = table_RAs.find_all('tr')
         RAs = [] 
-        base_url = 'https://lawphil.net/statutes/repacts/ra2022/'
+        base_url = 'https://lawphil.net/statutes/repacts/ra2021/'
         
         for idx, row in enumerate(table_rows): 
             if idx == 0: 
