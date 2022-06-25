@@ -41,9 +41,14 @@ from airflow.providers.google.cloud.operators.bigquery import BigQueryCheckOpera
 
 
 
+#################################################################################################################
+########################################### GLOBAL VARIABLES ####################################################
+#################################################################################################################
 
 BUCKET_NAME = "capstone-legal" # Our GCP bucket 
 DATA_PATH = '/opt/airflow/data/' # VM's data folder
+
+# GBQ variables for data validation
 DATASET = "legal_documents"
 TABLE_1 = "cases"
 TABLE_2 = "executive_orders"
@@ -52,20 +57,7 @@ TABLE_4 = "republic_acts"
 
 
 
-#################################################################################################################
-########################################### HELPER FUNCTIONS ####################################################
-#################################################################################################################
 
-def upload_formatted_rss_feed(feed, feed_name):
-    feed = feedparser.parse(feed)
-    df = pd.DataFrame(feed['entries'])
-    # csv_buffer = StringIO()
-    # df.to_csv(csv_buffer)
-
-    time_now = datetime.now().strftime('%Y-%m-%d_%I-%M-%S')
-    filename = feed_name + '_' + time_now + '.csv'
-    df.to_csv(f"{DATA_PATH}{filename}", index=False)
-    # upload_string_to_gcs(csv_body=csv_buffer, uploaded_filename=filename)
 
 
 
@@ -76,6 +68,10 @@ def upload_formatted_rss_feed(feed, feed_name):
 @task(task_id="scrape_proclamations")
 def scrape_proc(ds=None, **kwargs): 
     def scrape_procs():
+        """
+        Scrapes the Official Gazette's section on Presidential Proclamations. 
+        Finds the title of the EO_number, the EO title, and the URL, and outputs the df as a .parquet file
+        """
         r = requests.get('https://www.officialgazette.gov.ph/section/proclamations/')
         html = BeautifulSoup(r.content, 'lxml')
         proclamations = []
@@ -103,6 +99,10 @@ def scrape_proc(ds=None, **kwargs):
     
 @task(task_id='scrape_EOs')
 def scrape_eo(ds=None, **kwargs):
+    """
+    Scrapes the Official Gazette's section on Executive Orders. 
+    Finds the title of the EO_number, the EO title, and the URL, and outputs the df as a .parquet file
+    """
     r = requests.get('https://www.officialgazette.gov.ph/section/executive-orders/')
     html = BeautifulSoup(r.content, 'lxml')
     EOs = []
@@ -127,13 +127,22 @@ def scrape_eo(ds=None, **kwargs):
 
 @task(task_id='scrape_republic_acts')
 def scrape_RA(ds=None, **kwargs): 
+    """
+    Scrapes the lawphil.net page and outputs a .parquet file 
+    with the RA_number, RA_title, date, URL, and body_text of the republic act. 
+    The content of each RA is extracted from the URL, and applied elementwise to the df before being outputted.
+    """
     def scrape_page():
-        r = requests.get('https://lawphil.net/statutes/repacts/ra2021/ra2021.html')
+        """
+        Scrapes the base URL and returns a dictionary containing the column names of each row.
+        A try and except clause has been added to account for broken links, which comprise around 1/3 of the target page
+        """
+        r = requests.get('https://lawphil.net/statutes/repacts/ra2022/ra2022.html')
         html = BeautifulSoup(r.content, 'lxml')
         table_RAs = html.find_all('table')[2]
         table_rows = table_RAs.find_all('tr')
         RAs = [] 
-        base_url = 'https://lawphil.net/statutes/repacts/ra2021/'
+        base_url = 'https://lawphil.net/statutes/repacts/ra2022/'
         
         for idx, row in enumerate(table_rows): 
             if idx == 0: 
@@ -161,20 +170,22 @@ def scrape_RA(ds=None, **kwargs):
         return RAs 
 
     def scrape_RAs(url): 
+        """
+        From the base URL, each individual page found in the initial scrape is navigated to, and the contents are scraped
+        The text is stripped of unnecessary characters and returned
+        """
         sleep(1)
         try:
             r = requests.get(url)
             html = BeautifulSoup(r.content, 'lxml')
             table = html.find_all('table')[0]
             return table.text.strip() 
-    # 36 /124 have broken links -- have been designated null -- add to documentation 
         except: 
             return None
 
     df = pd.DataFrame(scrape_page())
     df['body_text'] = df['url'].apply(lambda x: scrape_RAs(x)).astype('str')
     df.to_parquet(f"{DATA_PATH}ra_data.parquet")
-    # df.to_csv(f"{DATA_PATH}ra_data.csv", index=False)
     return "Successfully scraped Republic Acts"
 
 
@@ -187,8 +198,16 @@ def scrape_RA(ds=None, **kwargs):
 
 @task(task_id="word_count")
 def word_count(ds=None, **kwargs):
-
+    """
+    Iterates through each .parquet file in DATA_PATH and
+    creates two columns: a sum of the total number of individual words, and a frequency table in dictionary format. 
+    Output is saved as a string dtype before overwriting the original file.
+    """
     def word_count(text):
+        """
+        Counts the words and returns a dictionary containing the frequency of each detected word.
+        Preprocessing is done at the start to remove words with specific characters, or those who fall below a specific length.
+        """
         # returning an empty dict for blank/empty text
         if text is None: 
             return {}
@@ -257,6 +276,11 @@ def word_count(ds=None, **kwargs):
 # NER
 @task(task_id='spacy_ner')
 def spacy_ner(ds=None, **kwargs):
+    """
+    Conducts Name Entity Recognition for each word found in the text functoin inputted. 
+    It loops through all the .parquet files in DATA_PATH, and applies the ner() function elementwise. 
+    The result is an overwritten .parquet file of the same name with additional NER columns for body 
+    """
     nlp = spacy.load("/model/en_core_web_sm/en_core_web_sm-3.3.0")
     def ner(text):
         doc = nlp(text)
@@ -276,8 +300,8 @@ def spacy_ner(ds=None, **kwargs):
         df = pd.read_parquet(outfile)
 
         ################################# TODO: IMPORTANT #########################################
-        # you need to find the column where the text/content is located e.g. 'summary' or 'content'
-        # and add a conditional logic below
+        # you need to find the column where the text/content is located e.g. 'title' or 'body_text'
+        # and add conditional logic below
         ###########################################################################################
 
         if outfile.startswith(f'{DATA_PATH}cases'):
@@ -311,6 +335,10 @@ def spacy_ner(ds=None, **kwargs):
 
 @task(task_id="load_data")
 def load_data(ds=None, **kwargs): 
+    """
+    Iterates through the files in DATA_PATH, and checks if they are .parquet files. If so, they run the image through
+    the upload_file_to_gcs() function, which manually uploads them to the GCS bucket. 
+    """
     files = os.listdir(DATA_PATH)
     for file in files: 
         outfile = f"{DATA_PATH}{file}"
@@ -324,6 +352,10 @@ def load_data(ds=None, **kwargs):
 
 
 def upload_file_to_gcs(remote_file_name, local_file_name):
+    """
+    Uploads the file to the GCS bucket defined locally on the VM's Airflow variables. 
+    Remote file name sets the name on the bucket, while local identifies the file in the DATA_PATH directory
+    """
     gcs_client = boto3.client(
         "s3",
         region_name="auto",
@@ -342,6 +374,10 @@ def upload_file_to_gcs(remote_file_name, local_file_name):
 # be careful when running this task without any pre-generated files locally - it will break the container
 @task(task_id='delete_residuals')
 def delete_residuals(ds=None, **kwargs): 
+    """
+    This function iterates through each file in the data folder. For each file, it will print the name of the path, and then delete the 
+    contents if it is a folder or a .parquet file. The end result is an empty /opt/airflow/data folder when checked on the VM 
+    """
     files = os.listdir(f"{DATA_PATH}")
     for file in files: 
         outfile = f"{DATA_PATH}{file}"
@@ -420,26 +456,33 @@ with DAG(
     ########################### setting up a branch operator for data integrity checks  ##############################
     ##################################################################################################################
     
+    # def choose_branch(**kwargs, result, input): 
+    #     if result > input: 
+    #         return ['task_a', 'task_b']
+    #     return['task_c']
+
+    # validation_step
+
     # check_count = BigQueryCheckOperator(
-    #     task_id="check_count",
+    #     task_id="check_len_cases",
     #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
     #     use_legacy_sql=False,
     # )
 
     # check_count = BigQueryCheckOperator(
-    #     task_id="check_count",
+    #     task_id="check_count_eos",
     #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
     #     use_legacy_sql=False,
     # )
 
     # check_count = BigQueryCheckOperator(
-    #     task_id="check_count",
+    #     task_id="check_count_procs",
     #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_3}",
     #     use_legacy_sql=False,
     # )
 
     # check_count = BigQueryCheckOperator(
-    #     task_id="check_count",
+    #     task_id="check_count_",
     #     sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_4}",
     #     use_legacy_sql=False,
     # )
