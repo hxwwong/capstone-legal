@@ -8,7 +8,7 @@ This capstone project aims to provide an automated data pipeline that ingests da
 
 Through running a Google Cloud Engine instance, we utilize Docker and Apache Airflow to deploy an ETL pipeline which scrapes and aggregates data from different websites, legal journals, and publications to generate an NLP-ready database for the public. 
 
-This is a capstone project made by Hans Xavier W. Wongfor Sprint 4 of Cohort 1 of the Data Engineering Bootcamp.
+This is a capstone project made by Hans Xavier W. Wong for Sprint 4 of Cohort 1 of the Data Engineering Bootcamp.
 
 # Setup
 
@@ -125,8 +125,11 @@ Once in the bucket, scheduled data transfers mapped to the parquet files will tr
 # Challenges & Points for Improvement
 
 - A major point of improvement is the use of more rigorous data validation for the files, and the use of branching operators to manage failures in the pipeline. Most of the time spent on the project was mostly ensuring the files and the end output were bug-free, and had limited opportunity to polish the ingestion requirements and parameters.
+
 - Another point of improvement is the use of a better cleanup task. Rather than just clearing the local file, it’s possible to attach a date and time modifier to ensure that no duplication exists when ingesting new data, and when managing data transfers. This lowers the cost accrued by redundancy.
-- A major challenge that I encountered were managing the data types and dealing with the errors that cropped uip on overlapping processes. A lot of time was spent tracking, debugging, and coding plenty of try-except clauses to ensure that all the data was parsed properly, and the dag wouldn’t fail. I think more attention to detail with things like data-types, file paths, and the like, especially when changes were made.
+
+- A major challenge that I encountered were managing the data types and dealing with the errors that cropped uip on overlapping processes. A lot of time was spent tracking, debugging, and coding plenty of try-except clauses to ensure that all the data was parsed properly, and the dag wouldn’t fail. I think more attention to detail with things like data-types, file paths, and the like, especially when changes were made, would help reduce the number of iterations needed in this process.
+
 - Another struggle was how long it took for certain dags or images to build/compose. It made it hard to get immediate feedback on what was going wrong, and slowed down the whole error-correction pipeline. In an extreme case, it even meant that I had to restart the setup process again because repeated docker image pulling ended up consuming too much memory space. I From that, I understand better the importance of creating a dedicated environment for testing, validation, and placing checks to ensure resources are manged optimally.
 
 
